@@ -235,6 +235,50 @@
       background: var(--border);
     }
 
+    /* ── Alarm sound row ── */
+    .alarm-sound-row {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .alarm-sound-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .toggle-switch { position: relative; display: inline-block; cursor: pointer; }
+    .toggle-switch input { display: none; }
+
+    .toggle-track {
+      display: block;
+      width: 44px; height: 24px;
+      background: var(--border);
+      border-radius: 12px;
+      transition: background .2s;
+      position: relative;
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform .2s, box-shadow .2s;
+    }
+
+    .toggle-switch input:checked + .toggle-track { background: var(--cyan); }
+    .toggle-switch input:checked + .toggle-track .toggle-thumb {
+      transform: translateX(20px);
+      box-shadow: 0 0 8px rgba(6,182,212,.6);
+    }
+
     /* ── Debug toggle ── */
     .debug-toggle {
       font-size: 11px;
@@ -403,6 +447,20 @@
     </div>
     <input type="range" id="alarm-slider" min="1" max="10" step="0.5" value="3" />
     <div class="alarm-range-labels"><span>1°</span><span>10°</span></div>
+  </div>
+
+  <!-- Alarm sound toggle -->
+  <div class="alarm-sound-row">
+    <div class="alarm-sound-label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+      Alarm Sound
+    </div>
+    <label class="toggle-switch">
+      <input type="checkbox" id="alarm-sound-toggle" />
+      <span class="toggle-track">
+        <span class="toggle-thumb"></span>
+      </span>
+    </label>
   </div>
 
   <!-- Debug toggle -->
@@ -870,10 +928,75 @@ function drawBubble() {
   stPitch.className   = 'val-status ' + levelClass(pitch);
   stTotal.className   = 'val-status ' + (total < alarmThreshold ? '' : 'tilted');
 
+  updateAlarm(!isLevel);
+
   requestAnimationFrame(drawBubble);
 }
 
 drawBubble();
+
+// ─────────────────────────────────────────────────────────────
+//  Alarm sound (Web Audio API)
+// ─────────────────────────────────────────────────────────────
+let audioCtx      = null;
+let alarmEnabled  = false;
+let alarmBeeping  = false;   // true while the sensor is outside threshold
+let beepTimeout   = null;
+
+document.getElementById('alarm-sound-toggle').addEventListener('change', function () {
+  alarmEnabled = this.checked;
+  // Create AudioContext on first user interaction (browser autoplay policy)
+  if (alarmEnabled && !audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (!alarmEnabled) stopBeeping();
+});
+
+function playBeep() {
+  if (!audioCtx) return;
+  // Short two-tone pip: 880 Hz then 660 Hz
+  const tones = [880, 660];
+  let offset = 0;
+  for (const freq of tones) {
+    const osc  = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime + offset);
+
+    gain.gain.setValueAtTime(0, audioCtx.currentTime + offset);
+    gain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + offset + 0.01);
+    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + offset + 0.12);
+
+    osc.start(audioCtx.currentTime + offset);
+    osc.stop(audioCtx.currentTime + offset + 0.13);
+    offset += 0.14;
+  }
+}
+
+function scheduleBeep() {
+  if (!alarmEnabled || !alarmBeeping) return;
+  playBeep();
+  beepTimeout = setTimeout(scheduleBeep, 900);
+}
+
+function stopBeeping() {
+  alarmBeeping = false;
+  clearTimeout(beepTimeout);
+  beepTimeout = null;
+}
+
+function updateAlarm(isTilted) {
+  if (!alarmEnabled) return;
+  if (isTilted && !alarmBeeping) {
+    alarmBeeping = true;
+    scheduleBeep();
+  } else if (!isTilted && alarmBeeping) {
+    stopBeeping();
+  }
+}
 
 // ─────────────────────────────────────────────────────────────
 //  Debug panel toggle
