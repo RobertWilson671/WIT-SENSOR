@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bubble Level — WT901BLECL</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --card:     #1a1d27;
+      --border:   #2a2d3e;
+      --text:     #e2e8f0;
+      --muted:    #64748b;
+      --accent:   #6366f1;
+      --green:    #22c55e;
+      --yellow:   #eab308;
+      --red:      #ef4444;
+      --cyan:     #06b6d4;
+    }
+
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    body { padding: 24px 16px 40px; gap: 0; }
+
+    /* ── No BT banner ── */
+    #no-bt-banner {
+      display: none;
+      width: 100%; max-width: 520px;
+      background: #7f1d1d;
+      border: 1px solid var(--red);
+      border-radius: 10px;
+      padding: 12px 18px;
+      color: #fca5a5;
+      font-weight: 500;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    /* ── Main card ── */
+    .app-card {
+      width: 100%; max-width: 520px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 24px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    /* ── Header ── */
+    .app-header { text-align: center; }
+    .app-header h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+    .app-header p  { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+    /* ── Bubble level canvas ── */
+    #bubble-canvas {
+      display: block;
+      border-radius: 50%;
+      /* shadow will be drawn on the canvas itself */
+    }
+
+    /* ── Value cards ── */
+    .val-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      width: 100%;
+    }
+
+    .val-card {
+      background: #12141f;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 12px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .val-card-header {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+    }
+
+    .val-card-header svg { opacity: .7; flex-shrink: 0; }
+
+    .val-number {
+      font-size: 28px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      margin-top: 4px;
+    }
+
+    .val-unit { font-size: 16px; font-weight: 500; }
+
+    .val-status {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--green);
+      margin-top: 2px;
+    }
+    .val-status.tilted { color: var(--yellow); }
+
+    /* ── Buttons ── */
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .btn {
+      padding: 13px 16px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:active:not(:disabled) { transform: scale(0.97); }
+    .btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    .btn-connect  { background: var(--accent); color: #fff; }
+    .btn-connect:not(:disabled):hover  { opacity: .85; }
+
+    .btn-disconnect { background: #3d1515; color: #fca5a5; border: 1px solid #7f1d1d; }
+    .btn-disconnect:not(:disabled):hover { opacity: .85; }
+
+    .btn-zero  { background: #12141f; color: var(--text); border: 1px solid var(--border); }
+    .btn-zero:not(:disabled):hover  { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Status pill ── */
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #12141f;
+      align-self: center;
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+    .status-pill.connected    .status-dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-pill.connecting   .status-dot { background: var(--yellow); animation: blink 1s infinite; }
+    .status-pill.disconnected .status-dot { background: var(--muted); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+    /* ── Alarm slider ── */
+    .alarm-row {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .alarm-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .alarm-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .07em;
+    }
+
+    .alarm-value {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--cyan);
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--cyan);
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(6,182,212,.5);
+    }
+
+    .alarm-range-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* ── Divider ── */
+    .divider {
+      width: 100%;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Debug toggle ── */
+    .debug-toggle {
+      font-size: 11px;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      font-family: inherit;
+      align-self: center;
+    }
+    .debug-toggle:hover { color: var(--text); }
+
+    /* ── Debug panel ── */
+    #debug-panel {
+      width: 100%; max-width: 520px;
+      background: #120f07;
+      border: 1px solid #3a2a0e;
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 12px;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+    }
+    #debug-panel.open { display: flex; }
+
+    .dbg-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #b45309; }
+
+    #debug-stats { display: flex; gap: 16px; flex-wrap: wrap; }
+    .dbg-stat { display: flex; flex-direction: column; gap: 2px; }
+    .dbg-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+    .dbg-stat-value { font-weight: 700; font-variant-numeric: tabular-nums; color: #fbbf24; font-size: 13px; }
+    .dbg-stat-value.good { color: var(--green); }
+    .dbg-stat-value.bad  { color: var(--red); }
+
+    #debug-hex {
+      background: #0a0c13;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-family: 'Menlo', 'Consolas', monospace;
+      font-size: 11px;
+      color: #94a3b8;
+      min-height: 40px;
+      max-height: 100px;
+      overflow-y: auto;
+      word-break: break-all;
+      line-height: 1.8;
+    }
+    .hex-line { display: block; }
+    .hex-line.good { color: #86efac; }
+    .hex-line.bad  { color: #f87171; }
+
+    .dbg-btn-row { display: flex; gap: 8px; }
+    .btn-dbg {
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-dbg:hover { color: var(--text); border-color: var(--accent); }
+
+    #discover-output {
+      font-family: 'Menlo', 'Consolas', monospace;
+      font-size: 11px;
+      color: #94a3b8;
+      white-space: pre-wrap;
+    }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2a2d3e; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div id="no-bt-banner">
+  Web Bluetooth is not supported. Please use Chrome or Edge.
+</div>
+
+<div class="app-card">
+
+  <!-- Header -->
+  <div class="app-header">
+    <h1>Bubble Level</h1>
+    <p>Precision tilt measurement</p>
+  </div>
+
+  <!-- Status -->
+  <div id="status-pill" class="status-pill disconnected">
+    <div class="status-dot"></div>
+    <span id="status-text">Disconnected</span>
+  </div>
+
+  <!-- Bubble level -->
+  <canvas id="bubble-canvas" width="320" height="320"></canvas>
+
+  <!-- Value cards -->
+  <div class="val-row">
+    <div class="val-card">
+      <div class="val-card-header">
+        <!-- Up arrow -->
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+        Pitch
+      </div>
+      <div class="val-number" id="val-pitch">—<span class="val-unit"></span></div>
+      <div class="val-status" id="stat-pitch">—</div>
+    </div>
+    <div class="val-card">
+      <div class="val-card-header">
+        <!-- Right arrow -->
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        Roll
+      </div>
+      <div class="val-number" id="val-roll">—<span class="val-unit"></span></div>
+      <div class="val-status" id="stat-roll">—</div>
+    </div>
+    <div class="val-card">
+      <div class="val-card-header">
+        <!-- Target circle -->
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+        Total
+      </div>
+      <div class="val-number" id="val-total">—<span class="val-unit"></span></div>
+      <div class="val-status" id="stat-total">—</div>
+    </div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="btn-row">
+    <button id="btn-connect" class="btn btn-connect">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      Connect Sensor
+    </button>
+    <button id="btn-zero" class="btn btn-zero" disabled>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><circle cx="12" cy="12" r="1"/></svg>
+      Zero Level
+    </button>
+  </div>
+
+  <!-- Disconnect / Reconnect (hidden until needed) -->
+  <div class="btn-row" id="secondary-btns" style="display:none;">
+    <button id="btn-disconnect" class="btn btn-disconnect">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      Disconnect
+    </button>
+    <button id="btn-reconnect" class="btn btn-zero" style="display:none">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      Reconnect
+    </button>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Alarm threshold -->
+  <div class="alarm-row">
+    <div class="alarm-label-row">
+      <span class="alarm-label">Alarm Threshold</span>
+      <span class="alarm-value" id="alarm-display">3°</span>
+    </div>
+    <input type="range" id="alarm-slider" min="1" max="10" step="0.5" value="3" />
+    <div class="alarm-range-labels"><span>1°</span><span>10°</span></div>
+  </div>
+
+  <!-- Debug toggle -->
+  <button class="debug-toggle" id="debug-toggle-btn">▼ Show diagnostics</button>
+
+</div>
+
+<!-- Debug panel (outside main card) -->
+<div id="debug-panel">
+  <div class="dbg-title">BLE Diagnostics</div>
+  <div id="debug-stats">
+    <div class="dbg-stat"><div class="dbg-stat-label">Callbacks</div><div class="dbg-stat-value" id="dbg-callbacks">0</div></div>
+    <div class="dbg-stat"><div class="dbg-stat-label">Bytes</div><div class="dbg-stat-value" id="dbg-bytes">0</div></div>
+    <div class="dbg-stat"><div class="dbg-stat-label">Valid Pkts</div><div class="dbg-stat-value good" id="dbg-valid">0</div></div>
+    <div class="dbg-stat"><div class="dbg-stat-label">Bad CkSum</div><div class="dbg-stat-value bad" id="dbg-bad-cs">0</div></div>
+    <div class="dbg-stat"><div class="dbg-stat-label">Notif State</div><div class="dbg-stat-value" id="dbg-notif">—</div></div>
+  </div>
+  <div id="debug-hex"><span style="color:#475569;font-style:italic">Raw bytes appear here…</span></div>
+  <div class="dbg-btn-row">
+    <button class="btn-dbg" id="btn-discover">Discover Services</button>
+    <button class="btn-dbg" id="btn-clear-debug">Clear</button>
+  </div>
+  <div id="discover-output"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+//  BLE UUIDs
+// ─────────────────────────────────────────────────────────────
+const SERVICE_UUID = '0000ffe5-0000-1000-8000-00805f9a34fb';
+const NOTIFY_UUID  = '0000ffe4-0000-1000-8000-00805f9a34fb';
+const WRITE_UUID   = '0000ffe9-0000-1000-8000-00805f9a34fb';
+const EXTRA_SERVICES = [
+  '0000ffe5-0000-1000-8000-00805f9a34fb',
+  '0000ffe0-0000-1000-8000-00805f9a34fb',
+  '0000ffe1-0000-1000-8000-00805f9a34fb',
+  '0000fff0-0000-1000-8000-00805f9a34fb',
+  '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+];
+
+// ─────────────────────────────────────────────────────────────
+//  State
+// ─────────────────────────────────────────────────────────────
+let bleDevice  = null;
+let bleBuffer  = new Uint8Array(0);
+
+let rawRoll  = 0, rawPitch  = 0, rawYaw  = 0;
+let zeroRoll = 0, zeroPitch = 0, zeroYaw = 0;
+let alarmThreshold = 3;
+
+// Displayed (zeroed) values
+function dispRoll()  { return rawRoll  - zeroRoll;  }
+function dispPitch() { return rawPitch - zeroPitch; }
+function dispYaw()   { return rawYaw   - zeroYaw;   }
+function dispTotal() { return Math.sqrt(dispRoll()**2 + dispPitch()**2); }
+
+// ─────────────────────────────────────────────────────────────
+//  Debug state
+// ─────────────────────────────────────────────────────────────
+let dbgCbCount = 0, dbgByteCount = 0, dbgValidCount = 0, dbgBadCsCount = 0;
+let debugHexReady = false;
+const MAX_HEX_LINES = 15;
+
+// ─────────────────────────────────────────────────────────────
+//  DOM refs
+// ─────────────────────────────────────────────────────────────
+const noBtBanner    = document.getElementById('no-bt-banner');
+const statusPill    = document.getElementById('status-pill');
+const statusText    = document.getElementById('status-text');
+const btnConnect    = document.getElementById('btn-connect');
+const btnDisconnect = document.getElementById('btn-disconnect');
+const btnReconnect  = document.getElementById('btn-reconnect');
+const btnZero       = document.getElementById('btn-zero');
+const secondaryBtns = document.getElementById('secondary-btns');
+const alarmSlider   = document.getElementById('alarm-slider');
+const alarmDisplay  = document.getElementById('alarm-display');
+
+const elPitch = document.getElementById('val-pitch');
+const elRoll  = document.getElementById('val-roll');
+const elTotal = document.getElementById('val-total');
+const stPitch = document.getElementById('stat-pitch');
+const stRoll  = document.getElementById('stat-roll');
+const stTotal = document.getElementById('stat-total');
+
+const dbgCallbacks = document.getElementById('dbg-callbacks');
+const dbgBytes     = document.getElementById('dbg-bytes');
+const dbgValid     = document.getElementById('dbg-valid');
+const dbgBadCs     = document.getElementById('dbg-bad-cs');
+const dbgNotif     = document.getElementById('dbg-notif');
+const debugHex     = document.getElementById('debug-hex');
+const discoverOut  = document.getElementById('discover-output');
+
+// ─────────────────────────────────────────────────────────────
+//  Web Bluetooth check
+// ─────────────────────────────────────────────────────────────
+if (!navigator.bluetooth) {
+  noBtBanner.style.display = 'block';
+  btnConnect.disabled = true;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Alarm slider
+// ─────────────────────────────────────────────────────────────
+alarmSlider.addEventListener('input', () => {
+  alarmThreshold = parseFloat(alarmSlider.value);
+  alarmDisplay.textContent = alarmThreshold + '°';
+});
+
+// ─────────────────────────────────────────────────────────────
+//  Zero Level
+// ─────────────────────────────────────────────────────────────
+btnZero.addEventListener('click', () => {
+  zeroRoll  = rawRoll;
+  zeroPitch = rawPitch;
+  zeroYaw   = rawYaw;
+  // Flash the button label
+  const orig = btnZero.innerHTML;
+  btnZero.textContent = 'Zeroed ✓';
+  setTimeout(() => { btnZero.innerHTML = orig; }, 1200);
+});
+
+// ─────────────────────────────────────────────────────────────
+//  Status UI helpers
+// ─────────────────────────────────────────────────────────────
+function setStatus(state, label) {
+  statusPill.className = 'status-pill ' + state;
+  statusText.textContent = label;
+}
+
+function showConnectedUI(name) {
+  setStatus('connected', name || 'Connected');
+  btnConnect.style.display   = 'none';
+  secondaryBtns.style.display = '';
+  btnDisconnect.style.display = '';
+  btnReconnect.style.display  = 'none';
+  btnZero.disabled = false;
+}
+
+function showDisconnectedUI(allowReconnect) {
+  setStatus('disconnected', 'Disconnected');
+  btnZero.disabled = true;
+  if (allowReconnect) {
+    btnConnect.style.display    = 'none';
+    secondaryBtns.style.display = '';
+    btnDisconnect.style.display = 'none';
+    btnReconnect.style.display  = '';
+  } else {
+    btnConnect.style.display    = '';
+    secondaryBtns.style.display = 'none';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  BLE Connection
+// ─────────────────────────────────────────────────────────────
+async function connectSensor() {
+  try {
+    setStatus('connecting', 'Connecting…');
+    btnConnect.disabled   = true;
+    btnReconnect.disabled = true;
+
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'WT901' }],
+      optionalServices: EXTRA_SERVICES,
+    });
+
+    bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+    const server  = await bleDevice.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    const notify  = await service.getCharacteristic(NOTIFY_UUID);
+
+    await notify.startNotifications();
+    notify.addEventListener('characteristicvaluechanged', onBleData);
+    dbgNotif.textContent = 'Active ✓';
+    dbgNotif.className   = 'dbg-stat-value good';
+
+    // Send startup command (some firmware needs this to begin streaming)
+    try {
+      const wc = await service.getCharacteristic(WRITE_UUID);
+      await wc.writeValue(new Uint8Array([0xFF, 0xAA, 0x27, 0x01, 0x00]));
+    } catch (_) { /* write char may not exist on all firmware */ }
+
+    bleBuffer = new Uint8Array(0);
+    showConnectedUI(bleDevice.name || 'WT901BLECL');
+  } catch (err) {
+    console.error('BLE error:', err);
+    showDisconnectedUI(false);
+    btnConnect.disabled   = false;
+    btnReconnect.disabled = false;
+  }
+}
+
+async function disconnectSensor() {
+  if (bleDevice && bleDevice.gatt.connected) bleDevice.gatt.disconnect();
+}
+
+function onDisconnected() {
+  showDisconnectedUI(true);
+  btnReconnect.disabled = false;
+}
+
+btnConnect.addEventListener('click',    () => connectSensor());
+btnDisconnect.addEventListener('click', () => disconnectSensor());
+btnReconnect.addEventListener('click',  () => connectSensor());
+
+// ─────────────────────────────────────────────────────────────
+//  Packet parsing
+// ─────────────────────────────────────────────────────────────
+function toInt16(lo, hi) {
+  const v = (hi << 8) | lo;
+  return v > 32767 ? v - 65536 : v;
+}
+
+function addDebugHexLine(text, cls) {
+  if (!debugHexReady) { debugHex.innerHTML = ''; debugHexReady = true; }
+  const el = document.createElement('div');
+  el.className = 'hex-line' + (cls ? ' ' + cls : '');
+  el.textContent = text;
+  debugHex.appendChild(el);
+  const lines = debugHex.querySelectorAll('.hex-line');
+  if (lines.length > MAX_HEX_LINES) lines[0].remove();
+  debugHex.scrollTop = debugHex.scrollHeight;
+}
+
+function toHex(b) {
+  return Array.from(b).map(x => x.toString(16).padStart(2,'0').toUpperCase()).join(' ');
+}
+
+function onBleData(event) {
+  const incoming = new Uint8Array(event.target.value.buffer);
+  dbgCbCount++;
+  dbgByteCount += incoming.length;
+  dbgCallbacks.textContent = dbgCbCount;
+  dbgBytes.textContent     = dbgByteCount;
+
+  const merged = new Uint8Array(bleBuffer.length + incoming.length);
+  merged.set(bleBuffer, 0);
+  merged.set(incoming, bleBuffer.length);
+  bleBuffer = merged;
+
+  let i = 0;
+  while (i < bleBuffer.length) {
+    if (bleBuffer[i] !== 0x55) { i++; continue; }
+    if (i + 2 > bleBuffer.length) break;
+
+    const ptype = bleBuffer[i + 1];
+    if (ptype === 0x61) {
+      if (i + 20 > bleBuffer.length) break;
+      const pkt = bleBuffer.slice(i, i + 20);
+      dbgValidCount++;
+      dbgValid.textContent = dbgValidCount;
+      addDebugHexLine(`[${dbgCbCount}] ${toHex(pkt)}`, 'good');
+      processPacket(pkt);
+      i += 20;
+    } else {
+      // Try old 11-byte format as fallback
+      if (i + 11 > bleBuffer.length) break;
+      const pkt = bleBuffer.slice(i, i + 11);
+      const sum = pkt.slice(0, 10).reduce((a, b) => a + b, 0);
+      if ((sum & 0xFF) === pkt[10]) {
+        dbgValidCount++;
+        dbgValid.textContent = dbgValidCount;
+        processPacket11(pkt);
+        i += 11;
+      } else {
+        dbgBadCsCount++;
+        dbgBadCs.textContent = dbgBadCsCount;
+        i++;
+      }
+    }
+  }
+  bleBuffer = bleBuffer.slice(i);
+}
+
+// 20-byte combined packet (WT901BLECL BLE format)
+function processPacket(p) {
+  rawRoll  = toInt16(p[14], p[15]) / 32768 * 180;
+  rawPitch = toInt16(p[16], p[17]) / 32768 * 180;
+  rawYaw   = toInt16(p[18], p[19]) / 32768 * 180;
+}
+
+// 11-byte legacy fallback
+function processPacket11(p) {
+  if (p[1] === 0x53) {
+    rawRoll  = toInt16(p[2], p[3]) / 32768 * 180;
+    rawPitch = toInt16(p[4], p[5]) / 32768 * 180;
+    rawYaw   = toInt16(p[6], p[7]) / 32768 * 180;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Bubble level canvas
+// ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('bubble-canvas');
+const ctx    = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const CX = W / 2, CY = H / 2;
+const OUTER_R  = 148;  // outer white ring
+const INNER_R  = 138;  // dark area
+const MAX_DEG  = 15;   // degrees at edge of circle
+const SCALE    = INNER_R / MAX_DEG;
+const BUBBLE_R = 22;
+
+function drawBubble() {
+  ctx.clearRect(0, 0, W, H);
+
+  const roll  = dispRoll();
+  const pitch = dispPitch();
+  const total = dispTotal();
+  const isLevel = total < alarmThreshold;
+
+  // Outer white glow ring
+  const outerGrad = ctx.createRadialGradient(CX, CY, INNER_R - 4, CX, CY, OUTER_R + 4);
+  outerGrad.addColorStop(0, 'rgba(255,255,255,0.0)');
+  outerGrad.addColorStop(0.4, 'rgba(255,255,255,0.15)');
+  outerGrad.addColorStop(1, 'rgba(255,255,255,0.0)');
+  ctx.beginPath();
+  ctx.arc(CX, CY, OUTER_R + 4, 0, Math.PI * 2);
+  ctx.fillStyle = outerGrad;
+  ctx.fill();
+
+  // White ring border
+  ctx.beginPath();
+  ctx.arc(CX, CY, OUTER_R, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 12;
+  ctx.stroke();
+
+  // Dark background circle
+  ctx.beginPath();
+  ctx.arc(CX, CY, INNER_R, 0, Math.PI * 2);
+  ctx.fillStyle = '#0d1422';
+  ctx.fill();
+
+  // Subtle grid
+  ctx.save();
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(99,102,241,0.08)';
+  ctx.lineWidth = 1;
+  const gridStep = SCALE * 5;
+  for (let x = CX % gridStep; x < W; x += gridStep) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = CY % gridStep; y < H; y += gridStep) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Dashed rings at 5°, 10°, 15°
+  ctx.setLineDash([5, 5]);
+  ctx.lineWidth = 1;
+  for (const deg of [5, 10, 15]) {
+    ctx.beginPath();
+    ctx.arc(CX, CY, deg * SCALE, 0, Math.PI * 2);
+    ctx.strokeStyle = deg === 5
+      ? 'rgba(99,102,241,0.4)'
+      : 'rgba(255,255,255,0.15)';
+    ctx.stroke();
+    // Degree label
+    ctx.fillStyle = 'rgba(100,116,139,0.7)';
+    ctx.font = '10px Inter';
+    ctx.textAlign = 'center';
+    ctx.fillText(deg + '°', CX, CY - deg * SCALE + 12);
+  }
+  ctx.setLineDash([]);
+
+  // Crosshair
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(CX - INNER_R, CY); ctx.lineTo(CX + INNER_R, CY);
+  ctx.moveTo(CX, CY - INNER_R); ctx.lineTo(CX, CY + INNER_R);
+  ctx.stroke();
+
+  // Center crosshair dot
+  ctx.beginPath();
+  ctx.arc(CX, CY, 3, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fill();
+
+  // N / S / E / W labels
+  ctx.font = '600 13px Inter';
+  ctx.fillStyle = 'rgba(148,163,184,0.8)';
+  ctx.textAlign = 'center';
+  ctx.fillText('N', CX, CY - INNER_R + 16);
+  ctx.fillText('S', CX, CY + INNER_R - 6);
+  ctx.textAlign = 'right';
+  ctx.fillText('W', CX - INNER_R + 16, CY + 4);
+  ctx.textAlign = 'left';
+  ctx.fillText('E', CX + INNER_R - 16, CY + 4);
+
+  // Bubble position: roll → X (inverted), pitch → Y (inverted in canvas)
+  let bx = CX - roll  * SCALE;
+  let by = CY - pitch * SCALE;
+
+  // Clamp bubble inside circle
+  const dist = Math.sqrt((bx - CX) ** 2 + (by - CY) ** 2);
+  const maxDist = INNER_R - BUBBLE_R;
+  if (dist > maxDist) {
+    bx = CX + (bx - CX) / dist * maxDist;
+    by = CY + (by - CY) / dist * maxDist;
+  }
+
+  // Bubble glow outer
+  const glowR = BUBBLE_R + 14;
+  const glow = ctx.createRadialGradient(bx, by, BUBBLE_R, bx, by, glowR);
+  if (isLevel) {
+    glow.addColorStop(0, 'rgba(6,182,212,0.35)');
+    glow.addColorStop(1, 'rgba(6,182,212,0)');
+  } else {
+    glow.addColorStop(0, 'rgba(239,68,68,0.35)');
+    glow.addColorStop(1, 'rgba(239,68,68,0)');
+  }
+  ctx.beginPath();
+  ctx.arc(bx, by, glowR, 0, Math.PI * 2);
+  ctx.fillStyle = glow;
+  ctx.fill();
+
+  // Bubble body gradient
+  const bgrad = ctx.createRadialGradient(
+    bx - BUBBLE_R * 0.35, by - BUBBLE_R * 0.35, BUBBLE_R * 0.1,
+    bx, by, BUBBLE_R
+  );
+  if (isLevel) {
+    bgrad.addColorStop(0, '#a5f3fc');
+    bgrad.addColorStop(0.45, '#06b6d4');
+    bgrad.addColorStop(1, '#0e7490');
+  } else {
+    bgrad.addColorStop(0, '#fca5a5');
+    bgrad.addColorStop(0.45, '#ef4444');
+    bgrad.addColorStop(1, '#991b1b');
+  }
+  ctx.beginPath();
+  ctx.arc(bx, by, BUBBLE_R, 0, Math.PI * 2);
+  ctx.fillStyle = bgrad;
+  ctx.fill();
+
+  // Bubble highlight
+  const hi = ctx.createRadialGradient(
+    bx - BUBBLE_R * 0.3, by - BUBBLE_R * 0.4, 1,
+    bx - BUBBLE_R * 0.1, by - BUBBLE_R * 0.2, BUBBLE_R * 0.55
+  );
+  hi.addColorStop(0, 'rgba(255,255,255,0.55)');
+  hi.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.beginPath();
+  ctx.arc(bx, by, BUBBLE_R, 0, Math.PI * 2);
+  ctx.fillStyle = hi;
+  ctx.fill();
+
+  // ── Update value cards ──
+  const fmt = v => (v >= 0 ? '+' : '') + v.toFixed(1);
+
+  elRoll.innerHTML  = fmt(roll)  + '<span class="val-unit">°</span>';
+  elPitch.innerHTML = fmt(pitch) + '<span class="val-unit">°</span>';
+  elTotal.innerHTML = total.toFixed(1) + '<span class="val-unit">°</span>';
+
+  const levelText  = v => Math.abs(v) < alarmThreshold ? 'Level' : (v > 0 ? '▲ Tilted' : '▼ Tilted');
+  const levelClass = v => Math.abs(v) < alarmThreshold ? '' : 'tilted';
+
+  stRoll.textContent  = levelText(roll);
+  stPitch.textContent = levelText(pitch);
+  stTotal.textContent = total < alarmThreshold ? 'Level' : 'Tilted';
+  stRoll.className    = 'val-status ' + levelClass(roll);
+  stPitch.className   = 'val-status ' + levelClass(pitch);
+  stTotal.className   = 'val-status ' + (total < alarmThreshold ? '' : 'tilted');
+
+  requestAnimationFrame(drawBubble);
+}
+
+drawBubble();
+
+// ─────────────────────────────────────────────────────────────
+//  Debug panel toggle
+// ─────────────────────────────────────────────────────────────
+const debugPanel = document.getElementById('debug-panel');
+document.getElementById('debug-toggle-btn').addEventListener('click', function () {
+  debugPanel.classList.toggle('open');
+  this.textContent = debugPanel.classList.contains('open')
+    ? '▲ Hide diagnostics'
+    : '▼ Show diagnostics';
+});
+
+document.getElementById('btn-clear-debug').addEventListener('click', () => {
+  debugHex.innerHTML = '<span style="color:#475569;font-style:italic">Cleared.</span>';
+  debugHexReady = false;
+  dbgCbCount = 0; dbgByteCount = 0; dbgValidCount = 0; dbgBadCsCount = 0;
+  dbgCallbacks.textContent = 0; dbgBytes.textContent = 0;
+  dbgValid.textContent = 0; dbgBadCs.textContent = 0;
+});
+
+document.getElementById('btn-discover').addEventListener('click', async () => {
+  discoverOut.textContent = '';
+  if (!bleDevice || !bleDevice.gatt.connected) {
+    discoverOut.textContent = 'Not connected.';
+    return;
+  }
+  discoverOut.textContent = 'Scanning…\n';
+  let out = '';
+  for (const uuid of EXTRA_SERVICES) {
+    try {
+      const svc = await bleDevice.gatt.getPrimaryService(uuid);
+      out += `SERVICE: ${svc.uuid}\n`;
+      try {
+        for (const c of await svc.getCharacteristics()) {
+          const props = Object.entries(c.properties).filter(([,v])=>v).map(([k])=>k).join(', ');
+          out += `  CHAR: ${c.uuid}  [${props}]\n`;
+        }
+      } catch {}
+    } catch {}
+  }
+  discoverOut.textContent = out || 'No known services found.';
+});
+</script>
+</body>
+</html>
