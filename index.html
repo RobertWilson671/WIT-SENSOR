@@ -509,6 +509,10 @@ let bleBuffer  = new Uint8Array(0);
 
 let rawRoll  = 0, rawPitch  = 0, rawYaw  = 0;
 let zeroRoll = 0, zeroPitch = 0, zeroYaw = 0;
+let audioCtx     = null;
+let alarmEnabled = false;
+let alarmBeeping = false;
+let beepTimeout  = null;
 let alarmThreshold = 3;
 
 // Displayed (zeroed) values
@@ -938,10 +942,6 @@ drawBubble();
 // ─────────────────────────────────────────────────────────────
 //  Alarm sound (Web Audio API)
 // ─────────────────────────────────────────────────────────────
-let audioCtx      = null;
-let alarmEnabled  = false;
-let alarmBeeping  = false;   // true while the sensor is outside threshold
-let beepTimeout   = null;
 
 document.getElementById('alarm-sound-toggle').addEventListener('change', function () {
   alarmEnabled = this.checked;
